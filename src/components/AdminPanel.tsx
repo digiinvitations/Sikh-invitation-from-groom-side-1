@@ -1,0 +1,1310 @@
+import React, { useEffect, useState, useRef } from "react";
+import { Link } from "react-router-dom";
+import { 
+  getWeddingData, 
+  saveWeddingData, 
+  getEnvironmentDocId, 
+  isOfficialInstance,
+  setCustomSlotId,
+  CANONICAL_DOC_ID,
+  GROOM_REMIX_DOC_ID 
+} from "../services/db";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { db } from "../firebase";
+import { WeddingData } from "../types";
+import { 
+  Save, 
+  Image as ImageIcon, 
+  ArrowLeft, 
+  Download, 
+  Upload, 
+  FileJson, 
+  ShieldCheck, 
+  Copy, 
+  Check, 
+  ExternalLink, 
+  FileText, 
+  Music, 
+  Video, 
+  Database,
+  RefreshCw,
+  ArrowUp,
+  ArrowDown,
+  Sparkles,
+  Calendar,
+  Clock
+} from "lucide-react";
+import { sortWeddingEvents, parseCeremonyDate, formatAuspiciousTime } from "../utils";
+
+export function AdminPanel() {
+  const [data, setData] = useState<WeddingData | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [password, setPassword] = useState("");
+  const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+  const [currentSlot, setCurrentSlot] = useState<string>("");
+  const [isOfficial, setIsOfficial] = useState<boolean>(true);
+  const [customSlotInput, setCustomSlotInput] = useState<string>("");
+  const [showSlotSettings, setShowSlotSettings] = useState<boolean>(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    async function loadData() {
+      const dbData = await getWeddingData();
+      setData(dbData);
+      setCurrentSlot(getEnvironmentDocId());
+      setIsOfficial(isOfficialInstance());
+    }
+    loadData();
+  }, []);
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-blush-main flex items-center justify-center p-4 font-serif">
+        <div className="bg-white p-8 rounded-xl shadow-lg border border-pink-border max-w-sm w-full text-center">
+          <h2 className="text-2xl font-script text-wine-dark mb-4">Admin Login</h2>
+          <input 
+            type="password"
+            placeholder="Enter Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                if (password === "4260") setIsAuthenticated(true);
+                else alert("Incorrect password");
+              }
+            }}
+            className="w-full border border-pink-border rounded-md px-4 py-2 mb-4 text-center focus:outline-none focus:border-pink-accent"
+          />
+          <button 
+            onClick={() => {
+              if (password === "4260") setIsAuthenticated(true);
+              else alert("Incorrect password");
+            }}
+            className="w-full bg-burgundy text-white py-2 rounded-md font-bold uppercase tracking-widest text-xs hover:bg-wine-dark transition-colors"
+          >
+            Enter
+          </button>
+          <Link to="/" className="block mt-4 text-sm text-wine-dark/70 hover:text-wine-dark underline">
+            Return to Website
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (!data) return <div className="p-8 font-serif">Loading Admin Panel...</div>;
+
+  const handleChange = (path: string, value: any) => {
+    setData((prev: any) => {
+      const updated = { ...prev };
+      const keys = path.split('.');
+      let current = updated;
+      for (let i = 0; i < keys.length - 1; i++) {
+        if (!current[keys[i]]) {
+          current[keys[i]] = {};
+        }
+        current = current[keys[i]];
+      }
+      current[keys[keys.length - 1]] = value;
+      return updated;
+    });
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64String = event.target?.result as string;
+      setData((prev: any) => {
+        const newGallery = [...prev.gallery];
+        newGallery[index] = base64String;
+        return { ...prev, gallery: newGallery };
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSingleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, field: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64String = event.target?.result as string;
+      handleChange(field, base64String);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const addImage = () => {
+    setData((prev: any) => ({
+      ...prev,
+      gallery: [...prev.gallery, ""]
+    }));
+  };
+
+  const removeImage = (index: number) => {
+    setData((prev: any) => {
+      const newGallery = [...prev.gallery];
+      newGallery.splice(index, 1);
+      return { ...prev, gallery: newGallery };
+    });
+  };
+
+  const handleSortEvents = () => {
+    if (!data?.events) return;
+    const sorted = sortWeddingEvents(data.events);
+    setData((prev) => (prev ? { ...prev, events: sorted } : prev));
+  };
+
+  const handleMoveEvent = (index: number, direction: 'up' | 'down') => {
+    if (!data?.events) return;
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= data.events.length) return;
+    const newEvents = [...data.events];
+    const temp = newEvents[index];
+    newEvents[index] = newEvents[targetIndex];
+    newEvents[targetIndex] = temp;
+    setData((prev) => (prev ? { ...prev, events: newEvents } : prev));
+  };
+
+  const handleSave = async () => {
+    if (!data) return;
+    setSaving(true);
+    try {
+      await saveWeddingData(data);
+      alert("Settings saved successfully!");
+    } catch (error) {
+      console.error(error);
+      alert("Failed to save.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // EXPORT: Download complete JSON package containing all wedding data & files
+  const handleExport = () => {
+    if (!data) return;
+    try {
+      const exportPayload = {
+        version: "1.0",
+        exportedAt: new Date().toISOString(),
+        databaseSlot: getEnvironmentDocId(),
+        couple: `${data.bride?.name || "Bride"} & ${data.groom?.name || "Groom"}`,
+        data: data
+      };
+      const jsonString = JSON.stringify(exportPayload, null, 2);
+      const blob = new Blob([jsonString], { type: "application/json;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const safeCouple = `${data.bride?.name || "wedding"}_and_${data.groom?.name || "invitation"}`
+        .toLowerCase()
+        .replace(/[^a-z0-9_-]/gi, "_");
+      link.href = url;
+      link.download = `wedding_backup_${safeCouple}_${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Export error:", err);
+      alert("Failed to export data. Please try again.");
+    }
+  };
+
+  // IMPORT: Import complete JSON package from another website or remix
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const content = event.target?.result as string;
+        const parsed = JSON.parse(content);
+
+        // Support both wrapped export format { data: WeddingData } and raw WeddingData
+        const importedData: WeddingData = parsed.data && typeof parsed.data === "object" ? parsed.data : parsed;
+
+        if (!importedData || typeof importedData !== "object") {
+          throw new Error("Invalid file format. Please provide a valid JSON backup.");
+        }
+        if (!importedData.groom || !importedData.bride) {
+          throw new Error("Missing groom or bride information in the backup file.");
+        }
+
+        // Safety defaults for nested structures
+        if (!Array.isArray(importedData.events)) importedData.events = [];
+        if (!Array.isArray(importedData.timeline)) importedData.timeline = [];
+        if (!Array.isArray(importedData.gallery)) importedData.gallery = [];
+        if (!importedData.venue) {
+          importedData.venue = { name: "", addressLine1: "", addressLine2: "", mapUrl: "" };
+        }
+
+        // Update local state immediately so fields update
+        setData(importedData);
+
+        const shouldAutoSave = window.confirm(
+          `Backup loaded successfully for ${importedData.groom?.name || "Groom"} & ${importedData.bride?.name || "Bride"}!\n\n` +
+          `Events: ${importedData.events.length}\n` +
+          `Do you want to SAVE this imported data to this website's database now?`
+        );
+
+        if (shouldAutoSave) {
+          setSaving(true);
+          await saveWeddingData(importedData);
+          setSaving(false);
+          alert("All data and files have been successfully imported and saved to the database!");
+        } else {
+          alert("Backup data loaded into the Admin Panel! You can make further edits and click 'Save Changes' whenever you are ready.");
+        }
+      } catch (err: any) {
+        console.error("Import error:", err);
+        alert("Failed to import file: " + (err.message || "Invalid JSON structure"));
+      } finally {
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  // DOWNLOAD ASSET HELPER: Allows downloading individual media files (videos, mp3, images)
+  const handleDownloadAsset = async (url: string, filename: string) => {
+    if (!url) return;
+    try {
+      if (url.startsWith("data:")) {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        return;
+      }
+
+      // Fetch blob to prompt download
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      // Fallback if CORS prevents blob download
+      window.open(url, "_blank");
+    }
+  };
+
+  const copyToClipboard = (text: string, idx: number) => {
+    navigator.clipboard.writeText(text);
+    setCopiedIdx(idx);
+    setTimeout(() => setCopiedIdx(null), 2000);
+  };
+
+  // List of all media files currently configured in this wedding
+  const mediaFilesList = [
+    { label: "Opening Thumbnail", url: data.openingThumbnailUrl, type: "image", filename: "opening_thumbnail.png" },
+    { label: "Hero Waheguru Logo / Icon", url: data.heroLogoUrl, type: "image", filename: "hero_waheguru_logo.png" },
+    { label: "Opening Video", url: data.openingVideoUrl, type: "video", filename: "opening_video.mp4" },
+    { label: "Opening Quote Page Background", url: data.openingQuoteBgUrl, type: "image", filename: "opening_quote_bg.jpg" },
+    { label: "Hero Section Video", url: data.heroVideoUrl, type: "video", filename: "hero_video.mp4" },
+    { label: "Opening Background Music", url: data.openingMusicUrl, type: "audio", filename: "opening_music.mp3" },
+    { label: "Background Music", url: data.musicUrl, type: "audio", filename: "background_music.mp3" },
+    { label: "OG Social Image", url: data.ogImageUrl, type: "image", filename: "social_og_image.jpg" },
+    ...(data.events || []).map((ev, i) => ({
+      label: `Event ${i + 1} Video (${ev.title || "Untitled"})`,
+      url: ev.videoUrl,
+      type: "video",
+      filename: `event_${i + 1}_video.mp4`
+    })),
+    ...(data.gallery || []).map((img, i) => ({
+      label: `Gallery Image ${i + 1}`,
+      url: img,
+      type: "image",
+      filename: `gallery_${i + 1}.jpg`
+    }))
+  ].filter(item => Boolean(item.url));
+
+  const handleDownloadAllLinksTxt = () => {
+    if (!data) return;
+    const lines: string[] = [
+      `================================================`,
+      `WEDDING ASSET & MEDIA URL BACKUP`,
+      `Couple: ${data.bride?.name} & ${data.groom?.name}`,
+      `Generated: ${new Date().toLocaleString()}`,
+      `Database Slot: ${currentSlot}`,
+      `================================================`,
+      ``,
+      `[OPENING THUMBNAIL]`,
+      data.openingThumbnailUrl || "(None)",
+      ``,
+      `[HERO RELIGIOUS LOGO / WAHEGURU ICON]`,
+      data.heroLogoUrl || "(None)",
+      ``,
+      `[OPENING VIDEO]`,
+      data.openingVideoUrl || "(None)",
+      ``,
+      `[HERO BACKGROUND VIDEO]`,
+      data.heroVideoUrl || "(None)",
+      ``,
+      `[BACKGROUND MUSIC TRACK]`,
+      data.musicUrl || "(None)",
+      ``,
+      `[OG SOCIAL SHARE IMAGE]`,
+      data.ogImageUrl || "(None)",
+      ``,
+      `[EVENTS]`,
+      ...(data.events || []).map((ev, i) => 
+        `Event ${i + 1}: ${ev.title} (${ev.date || 'No date'})\n  Video: ${ev.videoUrl || 'None'}\n  Map: ${ev.mapUrl || 'None'}`
+      ),
+      ``,
+      `[GALLERY IMAGES]`,
+      ...(data.gallery || []).map((img, i) => `Photo ${i + 1}: ${img.startsWith('data:') ? '[Base64 Uploaded Image]' : img}`)
+    ];
+
+    const blob = new Blob([lines.join("\n")], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `wedding_media_links_${new Date().toISOString().slice(0, 10)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleUpdateCustomSlot = async () => {
+    const raw = customSlotInput.trim();
+    if (!raw) {
+      setCustomSlotId("");
+      alert("Reset to automatic isolated slot identification.");
+      window.location.reload();
+      return;
+    }
+    const cleanSlot = raw.replace(/[\/\s#?\[\]]/g, "_");
+    setCustomSlotId(cleanSlot);
+    if (data) {
+      try {
+        setSaving(true);
+        await saveWeddingData(data);
+      } catch (e) {
+        console.warn("Could not save to new slot immediately:", e);
+      } finally {
+        setSaving(false);
+      }
+    }
+    alert(`Database slot updated to: ${cleanSlot}\nThis website will now store all data and RSVPs in this isolated slot.`);
+    window.location.reload();
+  };
+
+  const handleResetToTemplate = async () => {
+    if (!window.confirm("Load master template into this slot? This will copy all default Sikh wedding invitation events, texts, and media into this remix.")) return;
+    try {
+      setSaving(true);
+      const canonicalRef = doc(db, "weddingConfig", CANONICAL_DOC_ID);
+      const canonicalSnap = await getDoc(canonicalRef);
+      if (canonicalSnap.exists()) {
+        const fresh = canonicalSnap.data() as WeddingData;
+        setData(fresh);
+        await saveWeddingData(fresh);
+        alert("Template successfully loaded and saved into your remix slot!");
+      }
+    } catch (e) {
+      console.error("Error loading template:", e);
+      alert("Failed to load template. Please check your network connection.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveToRemixSlot = async () => {
+    if (!data) return;
+    setSaving(true);
+    try {
+      const remixRef = doc(db, "weddingConfig", GROOM_REMIX_DOC_ID);
+      const remixData: WeddingData = {
+        ...data,
+        remixName: data.remixName || "Waheguru sikh invitation remix From groom side - 1",
+        invitationSide: data.invitationSide || "groom",
+      };
+      await setDoc(remixRef, remixData);
+      alert(
+        `SUCCESS: Pre-saved to dedicated remix slot:\n"${GROOM_REMIX_DOC_ID}"\n\n` +
+        `This data is 100% isolated and ready for your upcoming remix. ` +
+        `It will NOT overlap, alter, or show up on this original website!`
+      );
+    } catch (e) {
+      console.error("Error saving to remix slot:", e);
+      alert("Error saving to remix slot.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSwitchToSlot = (slotId: string) => {
+    setCustomSlotId(slotId);
+    window.location.reload();
+  };
+
+  return (
+    <div className="min-h-screen bg-blush-main p-4 md:p-8 font-serif text-text-body">
+      <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-sm p-6 md:p-10 border border-pink-border">
+        
+        {/* Top Header with Navigation & Action Buttons */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 border-b border-pink-border pb-6 gap-4">
+          <div className="flex items-center gap-4">
+            <Link to="/" className="flex items-center gap-2 text-wine-dark hover:text-burgundy bg-blush-light px-3 py-1.5 rounded-full border border-pink-border/50 transition-colors text-sm font-semibold">
+              <ArrowLeft className="w-4 h-4" /> Go Back
+            </Link>
+            <div>
+              <h1 className="text-3xl font-script text-wine-dark">Admin Panel</h1>
+              <p className="text-xs text-text-body/70 font-sans mt-0.5">Manage wedding details, media files, and backups</p>
+            </div>
+          </div>
+
+          {/* Action Bar: Export, Import, Save */}
+          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+            {/* Hidden JSON file input */}
+            <input 
+              ref={fileInputRef}
+              type="file" 
+              accept=".json,application/json"
+              onChange={handleImport}
+              className="hidden"
+            />
+
+            <button 
+              onClick={handleExport}
+              type="button"
+              className="flex items-center gap-1.5 bg-white text-wine-dark border border-pink-border px-3.5 py-2 rounded-md hover:bg-blush-light transition-colors text-xs font-bold uppercase tracking-wider shadow-sm"
+              title="Download full wedding data & media as a JSON file"
+            >
+              <Download className="w-4 h-4 text-wine-dark" />
+              Export
+            </button>
+
+            <button 
+              onClick={() => fileInputRef.current?.click()}
+              type="button"
+              className="flex items-center gap-1.5 bg-white text-wine-dark border border-pink-border px-3.5 py-2 rounded-md hover:bg-blush-light transition-colors text-xs font-bold uppercase tracking-wider shadow-sm"
+              title="Upload and load a wedding JSON backup file"
+            >
+              <Upload className="w-4 h-4 text-wine-dark" />
+              Import
+            </button>
+
+            <button 
+              onClick={handleSave}
+              disabled={saving}
+              className="flex items-center gap-2 bg-burgundy text-white px-5 py-2 rounded-md hover:bg-wine-dark transition-colors disabled:opacity-50 text-xs font-bold uppercase tracking-wider shadow-sm ml-auto md:ml-0"
+            >
+              <Save className="w-4 h-4" />
+              {saving ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-8">
+
+          {/* HOSTING & ISOLATED DATABASE STATUS BANNER */}
+          <div className="bg-gradient-to-r from-pink-50 to-blush-light rounded-xl p-5 border border-pink-border/70 shadow-xs">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-white rounded-lg border border-pink-border/60 text-wine-dark shadow-xs">
+                  <ShieldCheck className="w-5 h-5 text-wine-dark" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-bold text-wine-dark text-sm">
+                      {isOfficial ? "Master Website Cloud Database" : "Remix Isolated Cloud Database"}
+                    </h3>
+                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                      isOfficial 
+                        ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                        : "bg-purple-100 text-purple-800 border-purple-300"
+                    }`}>
+                      {isOfficial ? "Official Master Slot" : "Isolated Remix Slot (No Overlap)"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-text-body/80 mt-1 font-sans">
+                    Active Storage Document: <code className="bg-white/80 px-1.5 py-0.5 rounded border border-pink-border/50 text-wine-dark font-mono text-[11px] font-bold">{currentSlot}</code>
+                  </p>
+                  <p className="text-xs text-text-body/70 mt-0.5 font-sans max-w-xl">
+                    {isOfficial 
+                      ? "You are managing the primary invitation for Jasmeet & Jaspreet. Saves update the canonical cloud storage and official links."
+                      : "This remixed website has its own dedicated, isolated Firestore slot. All details, media files, quotes, and guest RSVPs you save here are stored completely separately and will never overlap or overwrite the original website."
+                    }
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 self-end sm:self-center">
+                {isOfficial && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!data) return;
+                      setSaving(true);
+                      try {
+                        await saveWeddingData(data);
+                        alert("Successfully synchronized data to Vercel hosting and official master slots!");
+                      } catch (e) {
+                        console.error(e);
+                        alert("Sync error. Please try again.");
+                      } finally {
+                        setSaving(false);
+                      }
+                    }}
+                    disabled={saving}
+                    className="bg-wine-dark hover:bg-burgundy text-white text-xs px-3 py-1.5 rounded-lg shadow-xs transition-colors flex items-center gap-1.5 font-sans"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    Sync to Vercel
+                  </button>
+                )}
+                <button 
+                  type="button"
+                  onClick={() => setShowSlotSettings(!showSlotSettings)}
+                  className="text-xs text-wine-dark underline hover:text-burgundy font-sans"
+                >
+                  {showSlotSettings ? "Hide Options" : "Slot Settings"}
+                </button>
+              </div>
+            </div>
+
+            {showSlotSettings && (
+              <div className="mt-4 pt-4 border-t border-pink-border/40 font-sans text-xs space-y-3">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                  <span className="text-text-body/80 font-medium whitespace-nowrap">Custom Slot Name:</span>
+                  <input 
+                    type="text"
+                    placeholder="e.g. wedding_amrita_weds_harpreet"
+                    value={customSlotInput}
+                    onChange={(e) => setCustomSlotInput(e.target.value)}
+                    className="bg-white border border-pink-border rounded px-2.5 py-1.5 text-xs flex-1 max-w-xs focus:outline-none focus:border-pink-accent"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleUpdateCustomSlot}
+                    className="bg-wine-dark text-white px-3 py-1.5 rounded text-xs hover:bg-burgundy transition-colors font-medium"
+                  >
+                    Apply & Save Current Data
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setCustomSlotId(""); window.location.reload(); }}
+                    className="bg-white border border-pink-border text-wine-dark px-3 py-1.5 rounded text-xs hover:bg-blush-light transition-colors"
+                  >
+                    Reset to Auto
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap pt-1">
+                  <span className="text-text-body/70 text-[11px] font-medium">Quick Preset Slots:</span>
+                  <button
+                    type="button"
+                    onClick={() => handleSwitchToSlot(CANONICAL_DOC_ID)}
+                    className={`px-2.5 py-1 rounded text-[11px] border font-mono transition-colors ${
+                      currentSlot === CANONICAL_DOC_ID 
+                        ? "bg-emerald-700 text-white border-emerald-700 font-bold shadow-xs" 
+                        : "bg-white text-wine-dark border-pink-border hover:bg-blush-light"
+                    }`}
+                  >
+                    Official Master Slot
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSwitchToSlot(GROOM_REMIX_DOC_ID)}
+                    className={`px-2.5 py-1 rounded text-[11px] border font-mono transition-colors ${
+                      currentSlot === GROOM_REMIX_DOC_ID 
+                        ? "bg-amber-700 text-white border-amber-700 font-bold shadow-xs" 
+                        : "bg-white text-wine-dark border-pink-border hover:bg-blush-light"
+                    }`}
+                  >
+                    Waheguru Groom Remix 1 Slot
+                  </button>
+                </div>
+
+                {!isOfficial && (
+                  <div className="pt-2 border-t border-pink-border/30 flex items-center justify-between gap-2 flex-wrap">
+                    <span className="text-text-body/70 text-[11px]">
+                      Want to restart with default Sikh invitation text and assets?
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleResetToTemplate}
+                      disabled={saving}
+                      className="bg-white border border-pink-border text-wine-dark hover:bg-pink-50 px-2.5 py-1 rounded text-xs transition-colors"
+                    >
+                      Clone Master Template
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* BACKUP, IMPORT & EXPORT CENTER */}
+          <section className="bg-white rounded-xl p-5 border border-pink-border/80 shadow-xs">
+            <div className="flex items-center gap-2 mb-2">
+              <FileJson className="w-5 h-5 text-wine-dark" />
+              <h2 className="text-lg font-bold text-wine-dark">Data Backup & Migration (Import / Export)</h2>
+            </div>
+            <p className="text-xs text-text-body/75 font-sans mb-4">
+              Download all details, messages, timeline events, and file URLs as a portable backup file. 
+              You can import this backup file into any remix or another wedding website with 1-click.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
+              <button
+                type="button"
+                onClick={handleExport}
+                className="flex items-center justify-center gap-2 p-3 bg-blush-light hover:bg-pink-100/70 border border-pink-border rounded-lg text-wine-dark font-sans font-semibold text-xs transition-colors"
+              >
+                <Download className="w-4 h-4 text-wine-dark" />
+                <span>Download Full Wedding Backup (.json)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center justify-center gap-2 p-3 bg-blush-light hover:bg-pink-100/70 border border-pink-border rounded-lg text-wine-dark font-sans font-semibold text-xs transition-colors"
+              >
+                <Upload className="w-4 h-4 text-wine-dark" />
+                <span>Import Wedding Backup File (.json)</span>
+              </button>
+            </div>
+
+            {/* Uploaded Files & Media List */}
+            <div className="mt-4 pt-4 border-t border-pink-border/50">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h3 className="text-sm font-bold text-wine-dark">Uploaded Media & Files ({mediaFilesList.length})</h3>
+                  <p className="text-[11px] text-text-body/70 font-sans">
+                    All media files and videos uploaded to this wedding website. Click to download or copy direct links.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDownloadAllLinksTxt}
+                  className="flex items-center gap-1.5 text-xs text-wine-dark hover:text-burgundy bg-blush-light px-2.5 py-1 rounded border border-pink-border font-sans font-medium"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>Download Links (.txt)</span>
+                </button>
+              </div>
+
+              {mediaFilesList.length === 0 ? (
+                <p className="text-xs text-text-body/60 italic font-sans py-2">No media files currently uploaded.</p>
+              ) : (
+                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                  {mediaFilesList.map((item, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-2 bg-blush-light/50 rounded-lg border border-pink-border/40 text-xs font-sans gap-2">
+                      <div className="flex items-center gap-2 truncate flex-1 min-w-0">
+                        {item.type === "video" ? (
+                          <Video className="w-3.5 h-3.5 text-wine-dark shrink-0" />
+                        ) : item.type === "audio" ? (
+                          <Music className="w-3.5 h-3.5 text-wine-dark shrink-0" />
+                        ) : (
+                          <ImageIcon className="w-3.5 h-3.5 text-wine-dark shrink-0" />
+                        )}
+                        <span className="font-semibold text-wine-dark shrink-0">{item.label}:</span>
+                        <span className="truncate text-text-body/70 text-[11px]">{item.url}</span>
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard(item.url || "", idx)}
+                          className="p-1 text-wine-dark hover:bg-white rounded transition-colors"
+                          title="Copy Link"
+                        >
+                          {copiedIdx === idx ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadAsset(item.url || "", item.filename)}
+                          className="flex items-center gap-1 px-2 py-1 bg-white hover:bg-blush-light border border-pink-border/60 rounded text-[11px] font-medium text-wine-dark transition-colors"
+                          title="Download File"
+                        >
+                          <Download className="w-3 h-3" />
+                          <span>Download</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* WEDDING CELEBRATION SETTINGS */}
+          <section className="bg-gradient-to-br from-amber-50/80 via-white to-pink-50/50 rounded-xl p-6 border-2 border-amber-300 shadow-sm relative">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-5 pb-4 border-b border-amber-200/80">
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-xl font-bold text-wine-dark">Baraat &amp; Ceremony Settings</h2>
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-900 border border-amber-300 font-mono">
+                    Slot: {GROOM_REMIX_DOC_ID}
+                  </span>
+                </div>
+                <p className="text-xs text-text-body/80 font-sans mt-1">
+                  Ceremonies, Baraat departure, Anand Karaj schedule, and family information.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 self-stretch sm:self-auto">
+                <button
+                  type="button"
+                  onClick={handleSaveToRemixSlot}
+                  disabled={saving}
+                  className="bg-amber-700 hover:bg-amber-800 text-white text-xs px-3.5 py-2 rounded-lg font-sans font-semibold transition-colors flex items-center gap-1.5 shadow-xs whitespace-nowrap justify-center flex-1 sm:flex-initial"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  Pre-Save to Slot
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input 
+                  label="Website Title / Name" 
+                  value={data.remixName || "Waheguru Sikh Wedding Invitation | Jaspreet Singh & Jasmeet Kaur"} 
+                  onChange={(v) => handleChange("remixName", v)} 
+                />
+                
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-wine-dark mb-1 font-sans">
+                    Ceremonial Details Perspective
+                  </label>
+                  <select
+                    value={data.invitationSide || "groom"}
+                    onChange={(e) => handleChange("invitationSide", e.target.value)}
+                    className="w-full bg-white border border-pink-border rounded-lg p-2.5 text-xs text-wine-dark font-sans focus:outline-none focus:border-pink-accent"
+                  >
+                    <option value="groom">Wedding Invitation &amp; Anand Karaj</option>
+                    <option value="joint">Joint Invitation</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="bg-white/80 p-5 rounded-lg border border-amber-200/90 space-y-4">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h3 className="font-bold text-wine-dark text-sm flex items-center gap-2">
+                    <span>Celebration Details &amp; Baraat Schedule</span>
+                  </h3>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Input 
+                    label="Ceremony Badge / Banner Text" 
+                    value={data.groomSideDetails?.badgeText || ""} 
+                    placeholder="e.g. Auspicious Celebrations & Blessings"
+                    onChange={(v) => handleChange("groomSideDetails.badgeText", v)} 
+                  />
+                  <Input 
+                    label="Family Heading" 
+                    value={data.groomSideDetails?.familyHeading || ""} 
+                    placeholder="e.g. S. Kuldeep Singh Bhusari & Family"
+                    onChange={(v) => handleChange("groomSideDetails.familyHeading", v)} 
+                  />
+                  <Input 
+                    label="Baraat Assembly & Departure Time" 
+                    value={data.groomSideDetails?.baraatAssemblyTime || ""} 
+                    placeholder="e.g. 10:00 AM"
+                    onChange={(v) => handleChange("groomSideDetails.baraatAssemblyTime", v)} 
+                  />
+                  <Input 
+                    label="Baraat Departure Venue" 
+                    value={data.groomSideDetails?.baraatVenue || ""} 
+                    placeholder="e.g. River Stone Resort Orchha"
+                    onChange={(v) => handleChange("groomSideDetails.baraatVenue", v)} 
+                  />
+                  <Input 
+                    label="Milni & Anand Karaj Time" 
+                    value={data.groomSideDetails?.milniTime || ""} 
+                    placeholder="e.g. 11:30 AM Milni, 12:00 PM Anand Karaj"
+                    onChange={(v) => handleChange("groomSideDetails.milniTime", v)} 
+                  />
+                  <Input 
+                    label="Celebratory Lunch & Reception Time" 
+                    value={data.groomSideDetails?.receptionTime || ""} 
+                    placeholder="e.g. Lunch: 1:30 PM Onwards"
+                    onChange={(v) => handleChange("groomSideDetails.receptionTime", v)} 
+                  />
+                  <Input 
+                    label="Celebrations Venue" 
+                    value={data.groomSideDetails?.receptionVenue || ""} 
+                    placeholder="e.g. River Stone Resort Orchha"
+                    onChange={(v) => handleChange("groomSideDetails.receptionVenue", v)} 
+                  />
+                </div>
+
+                <TextArea 
+                  label="Ceremonial Schedule Notes" 
+                  value={data.groomSideDetails?.specialGroomNotes || ""} 
+                  placeholder="e.g. Barat departure at 10:00 AM, followed by Anand Karaj at 12:00 PM (Gurdwara Singh Sabha, Sipri Bazar), and celebratory Lunch at River Stone Resort Orchha."
+                  onChange={(v) => handleChange("groomSideDetails.specialGroomNotes", v)} 
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* Couple Details */}
+          <section>
+            <h2 className="text-xl font-bold text-wine-dark mb-4">Couple Details (Bride & Groom)</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4 bg-blush-light p-4 rounded-lg border border-pink-border/50">
+                <h3 className="font-bold text-burgundy">Bride Details</h3>
+                <Input label="Name" value={data.bride.name} onChange={(v) => handleChange("bride.name", v)} />
+                <Input label="Parents" value={data.bride.parents} onChange={(v) => handleChange("bride.parents", v)} />
+                <Input label="Education" value={data.bride.education} onChange={(v) => handleChange("bride.education", v)} />
+                <Input label="Profession" value={data.bride.profession} onChange={(v) => handleChange("bride.profession", v)} />
+              </div>
+              <div className="space-y-4 bg-blush-light p-4 rounded-lg border border-pink-border/50">
+                <h3 className="font-bold text-wine-dark">Groom Details</h3>
+                <Input label="Name" value={data.groom.name} onChange={(v) => handleChange("groom.name", v)} />
+                <Input label="Parents" value={data.groom.parents} onChange={(v) => handleChange("groom.parents", v)} />
+                <Input label="Education" value={data.groom.education} onChange={(v) => handleChange("groom.education", v)} />
+                <Input label="Profession" value={data.groom.profession} onChange={(v) => handleChange("groom.profession", v)} />
+              </div>
+            </div>
+          </section>
+
+          {/* Event Details */}
+          <section>
+             <h2 className="text-xl font-bold text-wine-dark mb-4">Event Date & Time</h2>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input label="Target Date (Countdown ISO)" value={data.weddingDate} onChange={(v) => handleChange("weddingDate", v)} type="datetime-local" />
+                <Input label="Formatted Date" value={data.weddingDateFormatted} onChange={(v) => handleChange("weddingDateFormatted", v)} />
+                <Input label="Formatted Time" value={data.weddingTimeFormatted} onChange={(v) => handleChange("weddingTimeFormatted", v)} />
+                <Input label="Day of Week" value={data.weddingDayFormatted} onChange={(v) => handleChange("weddingDayFormatted", v)} />
+             </div>
+          </section>
+
+          {/* Messages */}
+          <section>
+             <h2 className="text-xl font-bold text-wine-dark mb-4">Messages &amp; Text</h2>
+             <div className="space-y-4">
+               <Input label="Elder Invitation By (e.g. Grandmother Sdn. Jasmer Kaur)" value={data.invitedBy || ""} onChange={(v) => handleChange("invitedBy", v)} />
+               <TextArea label="Hero Message" value={data.heroMessage} onChange={(v) => handleChange("heroMessage", v)} />
+               <TextArea label="Invitation Message" value={data.invitationMessage} onChange={(v) => handleChange("invitationMessage", v)} />
+               <Input label="Family Regards (e.g. Gandhi Family)" value={data.familyRegards || ""} onChange={(v) => handleChange("familyRegards", v)} />
+               <TextArea label="Transportation Details" value={data.transportation} onChange={(v) => handleChange("transportation", v)} />
+               <Input label="Dress Code" value={data.dressCode} onChange={(v) => handleChange("dressCode", v)} />
+               <TextArea label="Closing Message" value={data.closingMessage} onChange={(v) => handleChange("closingMessage", v)} />
+             </div>
+          </section>
+
+          {/* RSVP & Contact Settings */}
+          <section>
+            <h2 className="text-xl font-bold text-wine-dark mb-4">RSVP &amp; Contact Details</h2>
+            <div className="space-y-4 bg-blush-light p-4 rounded-lg border border-pink-border/50">
+              <Input 
+                label="RSVP Contact 1 (Kuldeep - e.g. 9415031002)" 
+                value={data.rsvpPhones?.[0] || ""} 
+                placeholder="9415031002"
+                onChange={(v) => {
+                  const phones = [...(data.rsvpPhones || ["", ""])];
+                  phones[0] = v;
+                  handleChange("rsvpPhones", phones);
+                }} 
+              />
+              <Input 
+                label="RSVP Contact 2 (Inderdeep - e.g. 7860333336)" 
+                value={data.rsvpPhones?.[1] || ""} 
+                placeholder="7860333336"
+                onChange={(v) => {
+                  const phones = [...(data.rsvpPhones || ["", ""])];
+                  phones[1] = v;
+                  handleChange("rsvpPhones", phones);
+                }} 
+              />
+            </div>
+          </section>
+
+          {/* Events */}
+          <section>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+              <div>
+                <h2 className="text-xl font-bold text-wine-dark flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-burgundy" />
+                  Wedding Ceremonies &amp; Program Timeline
+                </h2>
+                <p className="text-xs text-text-body/70 font-sans mt-0.5">
+                  Organize ceremonial dates, auspicious timings, and locations. These details systematically power both the Wedding Ceremonies section and Program Timeline.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleSortEvents}
+                className="inline-flex items-center gap-1.5 bg-white border border-burgundy/40 text-burgundy hover:bg-blush-light px-3.5 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider shadow-xs transition-colors self-start sm:self-auto cursor-pointer"
+                title="Automatically organize all ceremonies in chronological order by date and auspicious time"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-burgundy" />
+                Sort Chronologically
+              </button>
+            </div>
+
+            <div className="space-y-5">
+              {data.events.map((event, idx) => {
+                const dateInfo = parseCeremonyDate(event.date, event.time);
+                const auspiciousTime = formatAuspiciousTime(event.time);
+                return (
+                  <div key={event.id || idx} className="bg-blush-light p-5 rounded-xl border border-pink-border/70 space-y-4 shadow-2xs">
+                    {/* Header with Ceremony Badge, Live Date Pill & Reorder Buttons */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-pink-border/60">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="px-2.5 py-0.5 rounded-full bg-burgundy text-white text-xs font-bold font-serif">
+                          Ceremony {idx + 1}
+                        </span>
+                        <h3 className="font-bold text-wine-dark text-base">{event.title || "Untitled Ceremony"}</h3>
+                        
+                        {/* Live Date Preview Badge */}
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white border border-pink-border text-wine-dark text-xs font-medium">
+                          <Calendar className="w-3 h-3 text-burgundy" />
+                          {dateInfo.dayOfWeek ? `${dateInfo.dayOfWeek} • ` : ""}{dateInfo.dateFormatted || event.date || "Date unselected"}
+                        </span>
+
+                        {/* Live Auspicious Time Badge */}
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-100/90 border border-amber-300 text-amber-950 text-xs font-semibold">
+                          <Clock className="w-3 h-3 text-amber-800" />
+                          {auspiciousTime || event.time || "Time unselected"}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleMoveEvent(idx, 'up')}
+                          disabled={idx === 0}
+                          className="p-1.5 bg-white border border-pink-border rounded hover:bg-blush-light disabled:opacity-30 disabled:cursor-not-allowed text-wine-dark transition-colors cursor-pointer"
+                          title="Move ceremony up"
+                        >
+                          <ArrowUp className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleMoveEvent(idx, 'down')}
+                          disabled={idx === data.events.length - 1}
+                          className="p-1.5 bg-white border border-pink-border rounded hover:bg-blush-light disabled:opacity-30 disabled:cursor-not-allowed text-wine-dark transition-colors cursor-pointer"
+                          title="Move ceremony down"
+                        >
+                          <ArrowDown className="w-3.5 h-3.5" />
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            const newEvents = [...data.events];
+                            newEvents.splice(idx, 1);
+                            handleChange("events", newEvents);
+                          }} 
+                          className="text-red-600 hover:bg-red-50 px-2.5 py-1 rounded text-xs font-medium border border-transparent hover:border-red-200 transition-colors ml-1 cursor-pointer"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <Input label="Event Title" value={event.title} onChange={(v) => handleChange(`events.${idx}.title`, v)} />
+                      
+                      {/* Date with helper */}
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-semibold uppercase tracking-widest opacity-70">
+                            Ceremony Date
+                          </label>
+                          {dateInfo.dayOfWeek && (
+                            <span className="text-[11px] font-bold text-burgundy font-serif">
+                              Detected: {dateInfo.dayOfWeek}, {dateInfo.dateFormatted}
+                            </span>
+                          )}
+                        </div>
+                        <input 
+                          type="date"
+                          value={dateInfo.isoDate || event.date}
+                          onChange={(e) => handleChange(`events.${idx}.date`, e.target.value)}
+                          className="w-full bg-white border border-pink-border rounded-md px-3 py-2 text-sm focus:outline-none focus:border-pink-accent focus:ring-1 focus:ring-pink-accent"
+                        />
+                      </div>
+
+                      {/* Auspicious Time with Quick Presets */}
+                      <div className="flex flex-col gap-1 md:col-span-2">
+                        <label className="text-xs font-semibold uppercase tracking-widest opacity-70">
+                          Auspicious Time (Ceremonial Schedule)
+                        </label>
+                        <input 
+                          type="text"
+                          value={event.time}
+                          placeholder="e.g. 12:30 PM, 8:00 PM, 10:30 AM to 1:30 PM, Barat: 10:00 AM • Anand Karaj: 12:00 PM"
+                          onChange={(e) => handleChange(`events.${idx}.time`, e.target.value)}
+                          className="w-full bg-white border border-pink-border rounded-md px-3 py-2 text-sm focus:outline-none focus:border-pink-accent focus:ring-1 focus:ring-pink-accent"
+                        />
+                        <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                          <span className="text-[11px] text-text-body/70 font-medium">Quick Presets:</span>
+                          <button
+                            type="button"
+                            onClick={() => handleChange(`events.${idx}.time`, "Haldi: 12:30 PM • Sagan & Ring: 8:00 PM")}
+                            className="text-[11px] bg-white border border-pink-border px-2 py-0.5 rounded hover:bg-blush-light text-wine-dark font-medium cursor-pointer"
+                          >
+                            Haldi: 12:30 PM • Sagan &amp; Ring: 8:00 PM
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleChange(`events.${idx}.time`, "12:30 PM")}
+                            className="text-[11px] bg-white border border-pink-border px-2 py-0.5 rounded hover:bg-blush-light text-wine-dark cursor-pointer"
+                          >
+                            12:30 PM (Haldi)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleChange(`events.${idx}.time`, "8:00 PM")}
+                            className="text-[11px] bg-white border border-pink-border px-2 py-0.5 rounded hover:bg-blush-light text-wine-dark cursor-pointer"
+                          >
+                            8:00 PM (Sagan &amp; Ring)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleChange(`events.${idx}.time`, "Barat: 10:00 AM • Anand Karaj: 12:00 PM")}
+                            className="text-[11px] bg-white border border-pink-border px-2 py-0.5 rounded hover:bg-blush-light text-wine-dark cursor-pointer"
+                          >
+                            Barat: 10:00 AM • Anand Karaj: 12:00 PM
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleChange(`events.${idx}.time`, "10:30 AM to 1:30 PM")}
+                            className="text-[11px] bg-white border border-pink-border px-2 py-0.5 rounded hover:bg-blush-light text-wine-dark cursor-pointer"
+                          >
+                            10:30 AM to 1:30 PM (Kirtan Darbar)
+                          </button>
+                        </div>
+                      </div>
+
+                      <Input label="Location Name / Venue" value={event.location} onChange={(v) => handleChange(`events.${idx}.location`, v)} />
+                      <Input label="Timeline Message / Schedule Notes" value={event.description || ""} onChange={(v) => handleChange(`events.${idx}.description`, v)} />
+                      <Input label="Sacred Quote / Gurmukhi Tuk" value={event.quote || ""} onChange={(v) => handleChange(`events.${idx}.quote`, v)} />
+                      <Input label="Video URL (.mp4)" value={event.videoUrl || ""} onChange={(v) => handleChange(`events.${idx}.videoUrl`, v)} />
+                      <Input label="Google Maps Link (URL)" value={event.mapUrl || ""} onChange={(v) => handleChange(`events.${idx}.mapUrl`, v)} />
+                    </div>
+                  </div>
+                );
+              })}
+              <button 
+                type="button"
+                onClick={() => {
+                  const newEvent = {
+                    id: Date.now().toString(),
+                    title: "New Ceremony",
+                    date: "2026-11-10",
+                    time: "12:00 PM",
+                    location: "River Stone Resort Orchha",
+                    description: "",
+                    videoUrl: "",
+                    mapUrl: ""
+                  };
+                  handleChange("events", [...data.events, newEvent]);
+                }} 
+                className="text-wine-dark hover:bg-blush-light px-4 py-3 rounded-xl border-2 border-dashed border-pink-border w-full text-center font-bold text-sm transition-colors cursor-pointer"
+              >
+                + Add Ceremony / Event
+              </button>
+            </div>
+          </section>
+
+          {/* Media Settings */}
+          <section>
+            <h2 className="text-xl font-bold text-wine-dark mb-4">Media Settings</h2>
+            <div className="space-y-4 bg-blush-light p-4 rounded-lg border border-pink-border/50">
+              
+              <div className="flex flex-col gap-2">
+                <h3 className="font-bold">Opening Thumbnail (Click to Enter)</h3>
+                <input 
+                  type="file" 
+                  accept="image/*"
+                  onChange={(e) => handleSingleImageUpload(e, 'openingThumbnailUrl')}
+                  className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-burgundy file:text-white hover:file:bg-wine-dark cursor-pointer"
+                />
+                <Input label="Or Thumbnail URL" value={data.openingThumbnailUrl || ""} onChange={(v) => handleChange("openingThumbnailUrl", v)} />
+                {data.openingThumbnailUrl && <img src={data.openingThumbnailUrl} className="w-24 h-24 object-cover rounded-md mt-2 border border-pink-border" alt="Thumbnail Preview" />}
+              </div>
+
+              <div className="flex flex-col gap-2 border-t border-pink-border pt-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold">Hero Religious Icon / Waheguru Logo (Background-Removed)</h3>
+                  {data.heroLogoUrl && (
+                    <button 
+                      type="button" 
+                      onClick={() => handleChange("heroLogoUrl", "")}
+                      className="text-xs text-red-600 hover:underline font-sans"
+                    >
+                      Clear / Reset to Text ੴ
+                    </button>
+                  )}
+                </div>
+                <p className="text-xs opacity-75 font-sans">
+                  Upload or link a transparent, background-removed image (.png, .webp, or .svg) to replace the symbol above the couple's names in the Hero section.
+                </p>
+                
+                <input 
+                  type="file" 
+                  accept="image/png,image/webp,image/svg+xml,image/*"
+                  onChange={(e) => handleSingleImageUpload(e, 'heroLogoUrl')}
+                  className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-burgundy file:text-white hover:file:bg-wine-dark cursor-pointer"
+                />
+                <Input 
+                  label="Or Logo Image URL (.png / .svg with transparent background)" 
+                  value={data.heroLogoUrl || ""} 
+                  onChange={(v) => handleChange("heroLogoUrl", v)} 
+                />
+
+                {/* Presets */}
+                <div className="flex flex-wrap items-center gap-2 mt-1">
+                  <span className="text-xs font-semibold text-wine-dark font-sans">Quick Presets:</span>
+                  <button
+                    type="button"
+                    onClick={() => handleChange("heroLogoUrl", "/ikonkar-gold.svg")}
+                    className="text-xs bg-white border border-pink-border px-2.5 py-1 rounded hover:bg-blush-light text-wine-dark font-sans transition-colors"
+                  >
+                    ੴ Golden Ik Onkar (SVG)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleChange("heroLogoUrl", "/khanda-gold.svg")}
+                    className="text-xs bg-white border border-pink-border px-2.5 py-1 rounded hover:bg-blush-light text-wine-dark font-sans transition-colors"
+                  >
+                    ⚔️ Golden Khanda Sahib (SVG)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleChange("heroLogoUrl", "")}
+                    className="text-xs bg-white border border-pink-border px-2.5 py-1 rounded hover:bg-blush-light text-wine-dark font-sans transition-colors"
+                  >
+                    Typographic ੴ
+                  </button>
+                </div>
+
+                {/* Transparency Preview Container */}
+                <div className="mt-2 p-3 bg-white rounded-lg border border-pink-border/80 flex items-center justify-center gap-4 shadow-2xs">
+                  <div className="text-center">
+                    <p className="text-[10px] text-wine-dark/75 uppercase tracking-widest font-sans mb-1.5 font-semibold">
+                      Hero Preview (White Shade Background)
+                    </p>
+                    {data.heroLogoUrl ? (
+                      <img 
+                        src={data.heroLogoUrl} 
+                        className="h-16 w-auto max-w-[150px] object-contain drop-shadow-sm mx-auto" 
+                        alt="Hero Logo Preview" 
+                      />
+                    ) : (
+                      <span className="text-4xl text-wine-dark font-serif font-bold drop-shadow-sm">
+                        ੴ
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2 border-t border-pink-border pt-4">
+                <h3 className="font-bold">Opening Video</h3>
+                <p className="text-xs opacity-70">Plays immediately after clicking the thumbnail. Must be a direct URL (e.g., .mp4).</p>
+                <Input label="Video URL" value={data.openingVideoUrl || ""} onChange={(v) => handleChange("openingVideoUrl", v)} />
+              </div>
+
+              <div className="flex flex-col gap-2 border-t border-pink-border pt-4">
+                <h3 className="font-bold">Opening Quote Page Background Image</h3>
+                <p className="text-xs opacity-70">Optional background image for the sacred quote page that appears after the opening video. Direct image URL.</p>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="flex-1">
+                    <Input label="Quote Page Background Image URL" value={data.openingQuoteBgUrl || ""} onChange={(v) => handleChange("openingQuoteBgUrl", v)} />
+                  </div>
+                  {data.openingQuoteBgUrl && (
+                    <div className="w-16 h-16 rounded border border-pink-border overflow-hidden flex-shrink-0 bg-white shadow-2xs">
+                      <img src={data.openingQuoteBgUrl} alt="Quote Background Preview" className="w-full h-full object-cover" />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2 border-t border-pink-border pt-4">
+                <h3 className="font-bold">OG Image URL (Social Sharing Preview)</h3>
+                <p className="text-xs opacity-70">Image shown when sharing the link on WhatsApp, Facebook, etc. Direct URL.</p>
+                <Input label="OG Image URL" value={data.ogImageUrl || ""} onChange={(v) => handleChange("ogImageUrl", v)} />
+              </div>
+
+              <div className="flex flex-col gap-2 border-t border-pink-border pt-4">
+                <h3 className="font-bold">Hero Section Video</h3>
+                <p className="text-xs opacity-70">Background video for the first section. Must be a direct URL (e.g., .mp4).</p>
+                <Input label="Hero Video URL" value={data.heroVideoUrl || ""} onChange={(v) => handleChange("heroVideoUrl", v)} />
+              </div>
+
+              <div className="flex flex-col gap-2 border-t border-pink-border pt-4">
+                <h3 className="font-bold">Opening Background Music</h3>
+                <p className="text-xs opacity-70">Plays during the opening video and quote reveal interlude. Direct link to .mp3 file.</p>
+                <Input label="Opening Music URL" value={data.openingMusicUrl || ""} onChange={(v) => handleChange("openingMusicUrl", v)} />
+              </div>
+
+              <div className="flex flex-col gap-2 border-t border-pink-border pt-4">
+                <h3 className="font-bold">Website Background Music</h3>
+                <p className="text-xs opacity-70">Direct link to an audio file (e.g., .mp3) to play across the main website.</p>
+                <Input label="Music URL" value={data.musicUrl || ""} onChange={(v) => handleChange("musicUrl", v)} />
+              </div>
+            </div>
+          </section>
+
+          {/* Venue Settings */}
+          <section>
+            <h2 className="text-xl font-bold text-wine-dark mb-4">Venue Details</h2>
+            <div className="space-y-4 bg-blush-light p-4 rounded-lg border border-pink-border/50">
+              <Input label="Venue Name" value={data.venue.name} onChange={(v) => handleChange("venue.name", v)} />
+              <Input label="Address Line 1" value={data.venue.addressLine1} onChange={(v) => handleChange("venue.addressLine1", v)} />
+              <Input label="Address Line 2" value={data.venue.addressLine2} onChange={(v) => handleChange("venue.addressLine2", v)} />
+              <Input label="Google Maps URL" value={data.venue.mapUrl} onChange={(v) => handleChange("venue.mapUrl", v)} />
+            </div>
+          </section>
+
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Input({ label, value, onChange, type = "text", placeholder }: { label: string, value: string, onChange: (v: string) => void, type?: string, placeholder?: string }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="text-xs font-semibold uppercase tracking-widest opacity-70">{label}</label>
+      <input 
+        type={type}
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full bg-white border border-pink-border rounded-md px-3 py-2 text-sm focus:outline-none focus:border-pink-accent focus:ring-1 focus:ring-pink-accent"
+      />
+    </div>
+  );
+}
+
+function TextArea({ label, value, onChange, placeholder }: { label: string, value: string, onChange: (v: string) => void, placeholder?: string }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="text-xs font-semibold uppercase tracking-widest opacity-70">{label}</label>
+      <textarea 
+        rows={4}
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full bg-white border border-pink-border rounded-md px-3 py-2 text-sm focus:outline-none focus:border-pink-accent focus:ring-1 focus:ring-pink-accent resize-y"
+      />
+    </div>
+  );
+}
