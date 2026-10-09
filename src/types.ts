@@ -91,4 +91,5 @@ export interface WeddingData {
   rsvpAddress?: string;
   rsvpPhones?: string[];
   rsvpContacts?: RSVPContact[];
+  updatedAt?: string;
 }

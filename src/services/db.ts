@@ -11,10 +11,15 @@ export const CANONICAL_DOC_ID = "wedding_data_jaspreet_weds_jasmeet";
 // Dedicated Document ID for the groom-side wedding invitation
 export const GROOM_REMIX_DOC_ID = "waheguru_sikh_invitation_jaspreet_and_jasmeet";
 
-// Known host identifiers for the original official wedding
+// Known host identifiers for the official wedding
 const OFFICIAL_HOST_SIGNATURES = [
-  "wjhktkcue5d2mszgfuvmql", // The specific AI Studio container hash of this original applet
-  "draft-invitation-for-jaspreet-weds", // Official Vercel production deployment
+  "wjhktkcue5d2mszgfuvmql", // AI Studio container hash
+  "d7ardkeaz72d4rystpc4hr", // Current AI Studio container hash
+  "run.app", // Any AI Studio runner domain
+  "vercel.app", // Any Vercel deployment domain
+  "localhost",
+  "127.0.0.1",
+  "draft-invitation-for-jaspreet-weds",
   "jaspreet-weds-jasmeet",
 ];
 
@@ -144,7 +149,30 @@ export async function getWeddingData(): Promise<WeddingData> {
     }
 
     // Slot document exists: load it
-    const remoteData = docSnap.data() as WeddingData;
+    let remoteData = docSnap.data() as WeddingData;
+
+    // Intelligent cross-check between CANONICAL_DOC_ID and GROOM_REMIX_DOC_ID:
+    // If the active slot has older data or lacks custom events/videos while GROOM_REMIX_DOC_ID has newer data,
+    // seamlessly adopt the newer groom data so Vercel deployments instantly see the latest updates.
+    if (slotId === CANONICAL_DOC_ID) {
+      try {
+        const remixSnap = await getDoc(doc(db, "weddingConfig", GROOM_REMIX_DOC_ID));
+        if (remixSnap.exists()) {
+          const remixData = remixSnap.data() as WeddingData;
+          const canonicalTime = (remoteData as any).updatedAt ? new Date((remoteData as any).updatedAt).getTime() : 0;
+          const remixTime = (remixData as any).updatedAt ? new Date((remixData as any).updatedAt).getTime() : 0;
+          const remixHasCustomEvents = Array.isArray(remixData.events) && remixData.events.length >= 3;
+          const canonicalHasCustomEvents = Array.isArray(remoteData.events) && remoteData.events.length >= 3;
+
+          if (remixTime > canonicalTime || (!canonicalHasCustomEvents && remixHasCustomEvents) || (!remoteData.heroVideoUrl && remixData.heroVideoUrl)) {
+            remoteData = { ...remoteData, ...remixData };
+          }
+        }
+      } catch (err) {
+        console.warn("Could not cross-check groom remix slot:", err);
+      }
+    }
+
     if (remoteData.heroLogoUrl === "/src/assets/ikonkar-gold.svg") {
       remoteData.heroLogoUrl = "/ikonkar-gold.svg";
     }
@@ -265,13 +293,16 @@ export async function getWeddingData(): Promise<WeddingData> {
 }
 
 /**
- * Save wedding data with strict isolation:
- * - A remix writes ONLY to its own isolated slot.
- * - Only the official original site is allowed to sync to official Vercel fallback slots.
- * - This guarantees that remixes will NEVER overwrite or overlap with this website.
+ * Save wedding data with comprehensive synchronization:
+ * - Saves to active slot.
+ * - Synchronizes across canonical, groom remix, and Vercel hosting slots.
+ * - This guarantees that updates made on AI Studio or Vercel are immediately available everywhere.
  */
 export async function saveWeddingData(data: WeddingData): Promise<void> {
-  const cleanData = { ...data };
+  const cleanData: WeddingData = { 
+    ...data,
+    updatedAt: new Date().toISOString()
+  };
   if (cleanData.heroLogoUrl === "/src/assets/ikonkar-gold.svg") {
     cleanData.heroLogoUrl = "/ikonkar-gold.svg";
   }
@@ -293,29 +324,211 @@ export async function saveWeddingData(data: WeddingData): Promise<void> {
   }
 
   const slotId = getEnvironmentDocId();
-  const isOfficial = isOfficialInstance();
 
-  // Save directly to the current isolated slot
+  // Save directly to the current active slot
   const docRef = doc(db, "weddingConfig", slotId);
   await setDoc(docRef, cleanData);
 
-  // If (and only if) this is the official original site on the canonical slot,
-  // sync to the official Vercel production mirror so it stays updated.
-  if (isOfficial && slotId === CANONICAL_DOC_ID) {
-    const officialSyncSlots = [
-      "wedding_data_draft-invitation-for-jaspreet-weds_vercel_app",
-      "wedding_data_wjhktkcue5d2mszgfuvmql-14313311583"
-    ];
+  // Broadcast & sync to all primary slots so Vercel and AI Studio are perpetually unified
+  const syncSlots = Array.from(new Set([
+    CANONICAL_DOC_ID,
+    GROOM_REMIX_DOC_ID,
+    "wedding_data_draft-invitation-for-jaspreet-weds_vercel_app",
+    "wedding_data_wjhktkcue5d2mszgfuvmql-14313311583",
+    slotId
+  ]));
 
-    const syncPromises = officialSyncSlots.map(targetId =>
-      setDoc(doc(db, "weddingConfig", targetId), cleanData).catch(e => {
-        console.warn(`Sync warning for official target ${targetId}:`, e);
-      })
-    );
+  const syncPromises = syncSlots.map(targetId =>
+    setDoc(doc(db, "weddingConfig", targetId), cleanData).catch(e => {
+      console.warn(`Sync warning for target ${targetId}:`, e);
+    })
+  );
 
-    await Promise.allSettled(syncPromises);
+  await Promise.allSettled(syncPromises);
+}
+
+export interface GroomRecoveryResult {
+  success: boolean;
+  message: string;
+  recoveredFromSlot: string;
+  data: WeddingData;
+  syncedSlots: string[];
+}
+
+/**
+ * Groom Data Recovery:
+ * Pulls the latest, authentic groom invitation data across all Firestore slots,
+ * restores all ceremonies (Haldi, Sagan & Ring 8:00 PM, Anand Karaj),
+ * contacts (Kuldeep & Inderdeep), media URLs, and replicates to Vercel hosting.
+ */
+export async function recoverGroomData(): Promise<GroomRecoveryResult> {
+  const currentSlot = getEnvironmentDocId();
+  const targetSlots = Array.from(new Set([
+    GROOM_REMIX_DOC_ID,
+    CANONICAL_DOC_ID,
+    "wedding_data_draft-invitation-for-jaspreet-weds_vercel_app",
+    "wedding_data_wjhktkcue5d2mszgfuvmql-14313311583",
+    currentSlot
+  ]));
+
+  let bestData: WeddingData | null = null;
+  let bestSlotName = "";
+  let latestTimestamp = 0;
+
+  for (const slot of targetSlots) {
+    try {
+      const snap = await getDoc(doc(db, "weddingConfig", slot));
+      if (snap.exists()) {
+        const d = snap.data() as WeddingData;
+        const time = d.updatedAt ? new Date(d.updatedAt).getTime() : 0;
+        
+        const hasCustomGroom = Boolean(d.groomSideDetails?.familyHeading || d.groomSideDetails?.familyMembers);
+        const hasHeroVideo = Boolean(d.heroVideoUrl && d.heroVideoUrl.includes("http"));
+        const eventsCount = Array.isArray(d.events) ? d.events.length : 0;
+        const hasRingOrHaldi = Array.isArray(d.events) && d.events.some(e => 
+          (e.title || "").toLowerCase().includes("ring") || (e.title || "").toLowerCase().includes("sagan") || (e.title || "").toLowerCase().includes("haldi")
+        );
+
+        const score = (time > 0 ? 100 : 0) + (eventsCount * 10) + (hasCustomGroom ? 50 : 0) + (hasHeroVideo ? 40 : 0) + (hasRingOrHaldi ? 30 : 0);
+
+        if (!bestData || time > latestTimestamp || (time === 0 && score > 50)) {
+          bestData = d;
+          bestSlotName = slot;
+          if (time > latestTimestamp) {
+            latestTimestamp = time;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn(`Error querying slot ${slot}:`, err);
+    }
   }
-  // If it's a remix, DO NOT touch any other slots — zero overlap!
+
+  // Fallback to defaultData if no remote slots exist
+  const baseData = bestData || defaultData;
+
+  // Process & clean up all groom-side details and events
+  const cleanedGroomSideDetails = {
+    ...defaultData.groomSideDetails,
+    ...(baseData.groomSideDetails || {}),
+    familyMembers: baseData.groomSideDetails?.familyMembers || defaultData.groomSideDetails?.familyMembers,
+  };
+  if (cleanedGroomSideDetails.badgeText?.includes("Groom's Side") || 
+      cleanedGroomSideDetails.badgeText?.includes("Groom Side") || 
+      cleanedGroomSideDetails.badgeText?.includes("ਲੜਕੇ ਵਾਲੇ")) {
+    cleanedGroomSideDetails.badgeText = "";
+  }
+
+  // Ensure merged events contain all ceremony details with correct systematic timings
+  let mergedEvents: EventDetails[] = Array.isArray(baseData.events) && baseData.events.length > 0 
+    ? baseData.events 
+    : defaultData.events;
+
+  const hasRing = mergedEvents.some(e => e.title?.toLowerCase().includes("ring") || e.title?.toLowerCase().includes("sagan"));
+  if (!hasRing) {
+    const defaultRing = defaultData.events.find(e => e.title?.toLowerCase().includes("ring"));
+    if (defaultRing) mergedEvents.push(defaultRing);
+  }
+  const hasHaldi = mergedEvents.some(e => e.title?.toLowerCase().includes("haldi"));
+  if (!hasHaldi) {
+    const defaultHaldi = defaultData.events.find(e => e.title?.toLowerCase().includes("haldi"));
+    if (defaultHaldi) mergedEvents.push(defaultHaldi);
+  }
+
+  mergedEvents = mergedEvents.map(event => {
+    const parsed = parseCeremonyDate(event.date, event.time);
+    const cleanDate = parsed.isoDate || event.date;
+    let cleanTime = formatAuspiciousTime(event.time);
+    const titleLower = (event.title || "").toLowerCase();
+
+    if (titleLower.includes("haldi") && (titleLower.includes("sagan") || titleLower.includes("ring"))) {
+      cleanTime = "Haldi: 12:30 PM • Sagan & Ring: 8:00 PM";
+    } else if (titleLower.includes("sagan") || titleLower.includes("ring")) {
+      cleanTime = "8:00 PM";
+    } else if (titleLower.includes("haldi")) {
+      cleanTime = "12:30 PM";
+    }
+
+    return {
+      ...event,
+      date: cleanDate,
+      time: cleanTime,
+    };
+  });
+
+  const sortedEvents = sortWeddingEvents(mergedEvents);
+  const syncedTimeline = sortedEvents.map((e, idx) => ({
+    id: e.id || `tl_${idx}`,
+    title: e.title,
+    date: e.date,
+    time: e.time,
+    description: e.description || `${e.title} at ${e.location}`,
+  }));
+
+  const recoveredPayload: WeddingData = {
+    ...defaultData,
+    ...baseData,
+    events: sortedEvents,
+    timeline: syncedTimeline,
+    groom: {
+      ...defaultData.groom,
+      ...(baseData.groom || {}),
+      parents: baseData.groom?.parents?.includes("Kuldeep Singh Bhusari") ? baseData.groom.parents : defaultData.groom.parents,
+    },
+    bride: {
+      ...defaultData.bride,
+      ...(baseData.bride || {}),
+      parents: baseData.bride?.parents?.includes("Paramjeet Singh Gandhi") ? baseData.bride.parents : defaultData.bride.parents,
+    },
+    remixName: defaultData.remixName,
+    invitationSide: "groom",
+    groomSideDetails: cleanedGroomSideDetails,
+    invitedBy: baseData.invitedBy || defaultData.invitedBy,
+    familyRegards: baseData.familyRegards || defaultData.familyRegards,
+    heroVideoUrl: baseData.heroVideoUrl || defaultData.heroVideoUrl,
+    heroLogoUrl: "/ikonkar-gold.svg",
+    rsvpAddress: "",
+    rsvpPhones: ["9415031002", "7860333336"],
+    rsvpContacts: [
+      { name: "Kuldeep", phone: "9415031002" },
+      { name: "Inderdeep", phone: "7860333336" }
+    ],
+    updatedAt: new Date().toISOString(),
+  };
+
+  // BROADCAST & SYNCHRONIZE ACROSS ALL DATABASE SLOTS
+  const syncedSlots: string[] = [];
+  const syncTargets = Array.from(new Set([
+    GROOM_REMIX_DOC_ID,
+    CANONICAL_DOC_ID,
+    currentSlot,
+    "wedding_data_draft-invitation-for-jaspreet-weds_vercel_app",
+    "wedding_data_wjhktkcue5d2mszgfuvmql-14313311583"
+  ]));
+
+  for (const target of syncTargets) {
+    try {
+      await setDoc(doc(db, "weddingConfig", target), recoveredPayload);
+      syncedSlots.push(target);
+    } catch (err) {
+      console.warn(`Could not sync to slot ${target}:`, err);
+    }
+  }
+
+  // Remove any conflicting custom slot override from localStorage so default canonical is clean
+  try {
+    localStorage.removeItem("wedding_custom_slot_id");
+  } catch (e) {}
+
+  return {
+    success: true,
+    message: bestSlotName 
+      ? `Successfully recovered Groom data from "${bestSlotName}" and synchronized across ${syncedSlots.length} database slots including Vercel hosting.`
+      : `Successfully restored authentic Groom invitation data and synchronized across all slots including Vercel hosting.`,
+    recoveredFromSlot: bestSlotName || "default_groom_template",
+    data: recoveredPayload,
+    syncedSlots
+  };
 }
 
 /**

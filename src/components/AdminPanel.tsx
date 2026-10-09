@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { 
   getWeddingData, 
   saveWeddingData, 
+  recoverGroomData,
   getEnvironmentDocId, 
   isOfficialInstance,
   setCustomSlotId,
@@ -46,6 +47,8 @@ export function AdminPanel() {
   const [isOfficial, setIsOfficial] = useState<boolean>(true);
   const [customSlotInput, setCustomSlotInput] = useState<string>("");
   const [showSlotSettings, setShowSlotSettings] = useState<boolean>(false);
+  const [recovering, setRecovering] = useState(false);
+  const [recoveryMessage, setRecoveryMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -271,6 +274,33 @@ export function AdminPanel() {
       }
     };
     reader.readAsText(file);
+  };
+
+  // GROOM DATA RECOVERY: Restores latest groom invitation data and broadcasts across all slots (including Vercel hosting)
+  const handleGroomDataRecovery = async () => {
+    setRecovering(true);
+    setRecoveryMessage(null);
+    try {
+      const result = await recoverGroomData();
+      if (result.success && result.data) {
+        setData(result.data);
+        setCurrentSlot(getEnvironmentDocId());
+        setIsOfficial(isOfficialInstance());
+        setRecoveryMessage(result.message);
+        alert(
+          `✅ Groom Data Recovery Successful!\n\n` +
+          `Your latest saved Groom wedding details, ceremony timings (Haldi: 12:30 PM & Sagan & Ring: 8:00 PM), ` +
+          `contacts (Kuldeep: 9415031002, Inderdeep: 7860333336), hero video, and media files have been recovered and synchronized across all cloud database slots (including Vercel hosting)!\n\n` +
+          `Source: ${result.recoveredFromSlot}\n` +
+          `Synchronized to: ${result.syncedSlots.length} database locations.`
+        );
+      }
+    } catch (err: any) {
+      console.error("Groom data recovery error:", err);
+      alert("Groom data recovery encountered an issue: " + (err.message || "Please check network connection"));
+    } finally {
+      setRecovering(false);
+    }
   };
 
   // DOWNLOAD ASSET HELPER: Allows downloading individual media files (videos, mp3, images)
@@ -502,6 +532,18 @@ export function AdminPanel() {
               Import
             </button>
 
+            {/* Groom Data Recovery Button */}
+            <button 
+              onClick={handleGroomDataRecovery}
+              disabled={recovering || saving}
+              type="button"
+              className="flex items-center gap-1.5 bg-gradient-to-r from-amber-700 via-amber-800 to-amber-900 hover:from-amber-800 hover:to-amber-950 text-white px-3.5 py-2 rounded-md transition-all text-xs font-bold uppercase tracking-wider shadow-sm border border-amber-600/70 active:scale-95 disabled:opacity-50"
+              title="Recover latest Groom data, events, timings, media, and sync to Vercel hosting"
+            >
+              <RefreshCw className={`w-4 h-4 ${recovering ? "animate-spin" : ""}`} />
+              {recovering ? "Recovering..." : "Groom data recovery"}
+            </button>
+
             <button 
               onClick={handleSave}
               disabled={saving}
@@ -514,6 +556,46 @@ export function AdminPanel() {
         </div>
 
         <div className="space-y-8">
+
+          {/* GROOM DATA RECOVERY BANNER */}
+          <div className="bg-gradient-to-r from-amber-50/90 via-orange-50/80 to-amber-100/70 rounded-xl p-5 border-2 border-amber-300/80 shadow-xs">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="p-2.5 bg-amber-700 text-white rounded-lg shadow-xs shrink-0">
+                  <Sparkles className="w-5 h-5 text-amber-200" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-bold text-wine-dark text-base font-serif">
+                      Groom Data Recovery &amp; Vercel Sync
+                    </h3>
+                    <span className="bg-amber-200 text-amber-900 border border-amber-400/80 px-2.5 py-0.5 rounded-full text-[11px] font-bold font-sans">
+                      Vercel Live Fix
+                    </span>
+                  </div>
+                  <p className="text-xs text-text-body/90 mt-1 font-sans max-w-2xl leading-relaxed">
+                    If earlier or older data appears when visiting your deployed Vercel hosting website, click <strong>Groom data recovery</strong>. This restores your latest saved Groom details (Haldi: 12:30 PM &amp; Sagan &amp; Ring: 8:00 PM, Kuldeep: 9415031002, Inderdeep: 7860333336, hero video, and ceremony timings) and immediately synchronizes them across all cloud database slots for Vercel.
+                  </p>
+                  {recoveryMessage && (
+                    <div className="mt-2 text-xs font-semibold text-emerald-800 bg-emerald-50 border border-emerald-300 rounded px-2.5 py-1 inline-flex items-center gap-1.5 font-sans">
+                      <Check className="w-3.5 h-3.5 text-emerald-700" />
+                      {recoveryMessage}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleGroomDataRecovery}
+                disabled={recovering || saving}
+                className="w-full md:w-auto shrink-0 flex items-center justify-center gap-2 bg-gradient-to-r from-amber-700 via-amber-800 to-amber-900 hover:from-amber-800 hover:to-amber-950 text-white px-5 py-2.5 rounded-lg shadow-md transition-all text-xs font-bold uppercase tracking-wider border border-amber-600 active:scale-95 disabled:opacity-50"
+              >
+                <RefreshCw className={`w-4 h-4 ${recovering ? "animate-spin" : ""}`} />
+                {recovering ? "Recovering..." : "Groom data recovery"}
+              </button>
+            </div>
+          </div>
 
           {/* HOSTING & ISOLATED DATABASE STATUS BANNER */}
           <div className="bg-gradient-to-r from-pink-50 to-blush-light rounded-xl p-5 border border-pink-border/70 shadow-xs">
@@ -547,30 +629,38 @@ export function AdminPanel() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 self-end sm:self-center">
-                {isOfficial && (
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (!data) return;
-                      setSaving(true);
-                      try {
-                        await saveWeddingData(data);
-                        alert("Successfully synchronized data to Vercel hosting and official master slots!");
-                      } catch (e) {
-                        console.error(e);
-                        alert("Sync error. Please try again.");
-                      } finally {
-                        setSaving(false);
-                      }
-                    }}
-                    disabled={saving}
-                    className="bg-wine-dark hover:bg-burgundy text-white text-xs px-3 py-1.5 rounded-lg shadow-xs transition-colors flex items-center gap-1.5 font-sans"
-                  >
-                    <Save className="w-3.5 h-3.5" />
-                    Sync to Vercel
-                  </button>
-                )}
+              <div className="flex items-center gap-2 self-end sm:self-center flex-wrap">
+                <button
+                  type="button"
+                  onClick={handleGroomDataRecovery}
+                  disabled={recovering || saving}
+                  className="bg-amber-700 hover:bg-amber-800 text-white text-xs px-3 py-1.5 rounded-lg shadow-xs transition-colors flex items-center gap-1.5 font-sans font-bold"
+                  title="Recover latest groom data and sync to Vercel"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${recovering ? "animate-spin" : ""}`} />
+                  Groom data recovery
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!data) return;
+                    setSaving(true);
+                    try {
+                      await saveWeddingData(data);
+                      alert("Successfully synchronized data to Vercel hosting and all database slots!");
+                    } catch (e) {
+                      console.error(e);
+                      alert("Sync error. Please try again.");
+                    } finally {
+                      setSaving(false);
+                    }
+                  }}
+                  disabled={saving}
+                  className="bg-wine-dark hover:bg-burgundy text-white text-xs px-3 py-1.5 rounded-lg shadow-xs transition-colors flex items-center gap-1.5 font-sans"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  Sync to Vercel
+                </button>
                 <button 
                   type="button"
                   onClick={() => setShowSlotSettings(!showSlotSettings)}
@@ -632,6 +722,15 @@ export function AdminPanel() {
                   >
                     Waheguru Groom Remix 1 Slot
                   </button>
+                  <button
+                    type="button"
+                    onClick={handleGroomDataRecovery}
+                    disabled={recovering || saving}
+                    className="px-2.5 py-1 rounded text-[11px] border font-sans bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-300 font-bold transition-colors flex items-center gap-1 shadow-2xs"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${recovering ? "animate-spin" : ""}`} />
+                    Groom data recovery
+                  </button>
                 </div>
 
                 {!isOfficial && (
@@ -664,14 +763,14 @@ export function AdminPanel() {
               You can import this backup file into any remix or another wedding website with 1-click.
             </p>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
               <button
                 type="button"
                 onClick={handleExport}
                 className="flex items-center justify-center gap-2 p-3 bg-blush-light hover:bg-pink-100/70 border border-pink-border rounded-lg text-wine-dark font-sans font-semibold text-xs transition-colors"
               >
                 <Download className="w-4 h-4 text-wine-dark" />
-                <span>Download Full Wedding Backup (.json)</span>
+                <span>Download Backup (.json)</span>
               </button>
 
               <button
@@ -680,7 +779,18 @@ export function AdminPanel() {
                 className="flex items-center justify-center gap-2 p-3 bg-blush-light hover:bg-pink-100/70 border border-pink-border rounded-lg text-wine-dark font-sans font-semibold text-xs transition-colors"
               >
                 <Upload className="w-4 h-4 text-wine-dark" />
-                <span>Import Wedding Backup File (.json)</span>
+                <span>Import Backup (.json)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleGroomDataRecovery}
+                disabled={recovering || saving}
+                className="flex items-center justify-center gap-2 p-3 bg-amber-50 hover:bg-amber-100 border border-amber-300 rounded-lg text-amber-900 font-sans font-bold text-xs transition-colors shadow-2xs"
+                title="Restore all groom details and sync across Vercel hosting slots"
+              >
+                <RefreshCw className={`w-4 h-4 text-amber-800 ${recovering ? "animate-spin" : ""}`} />
+                <span>Groom data recovery</span>
               </button>
             </div>
 
