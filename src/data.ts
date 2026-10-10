@@ -75,7 +75,7 @@ export const weddingData: WeddingData = {
       mapUrl: "https://maps.app.goo.gl/9gwG8qpYAZz97mko8?g_st=ac",
       description: "Join us for an auspicious Haldi ceremony at 12:30 PM, followed by an evening of Sagan rituals, Ring Ceremony, joyous music, and celebratory dinner at 8:00 PM.",
       quote: "ਧਨ ਪਿਰੁ ਏਹਿ ਨ ਆਖੀਅਨਿ ਬਹਨਿ ਇਕਠੇ ਹੋਇ ॥\nਏਕ ਜੋਤਿ ਦੁਇ ਮੂਰਤੀ ਧਨ ਪਿਰੁ ਕਹੀਐ ਸੋਇ ||",
-      videoUrl: "https://www.image2url.com/r2/default/videos/1788110638012-da72db7f-13ba-442b-9a43-7fe583bdb28c.mp4",
+      videoUrl: "https://videotourl.com/videos/1791566654857-d8d2875b-43de-4bb2-9e5a-a983f695bfe8.mp4",
     },
     {
       id: "ev3",
