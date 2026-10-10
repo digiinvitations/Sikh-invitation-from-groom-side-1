@@ -46,8 +46,8 @@ export const weddingData: WeddingData = {
   ogImageUrl: "https://i.ibb.co/whJhPT35/file-000000001e048211bb05770afd02bdae.png",
   heroMessage: "With the divine blessings of Sri Guru Granth Sahib Ji & Waheguru Ji\nwe cordially invite you to celebrate the Anand Karaj of\nJaspreet Singh & Jasmeet Kaur",
   invitationMessage: "With the heavenly blessings of Sri Guru Granth Sahib Ji, our respected elders, and Waheguru Ji, we are honored to invite you to celebrate the holy Anand Karaj and wedding festivities of Jaspreet & Jasmeet as they begin their sacred journey together in faith, love, and devotion.\n\nWe humbly request your gracious presence and blessings on this auspicious occasion.",
-  invitedBy: "Tirajveer Singh & Mehrajveer Singh",
-  familyRegards: "Bhusari Family",
+  invitedBy: "Late S. Inder Singh Bhusari & Late Sita Rani",
+  familyRegards: "Bhusari Family & Kalra Family",
   rsvpAddress: "",
   rsvpPhones: ["9415031002", "7860333336"],
   rsvpContacts: [
@@ -127,5 +127,5 @@ export const weddingData: WeddingData = {
   ],
   musicUrl: "https://www.image2url.com/r2/default/audio/1789746712370-13e5b6dc-06da-4293-b9ba-298c76e37a93.mp3",
   openingMusicUrl: "https://www.image2url.com/r2/default/audio/1789751954552-94db245b-3b41-4bfc-858b-4d8596814d9c.mp3",
-  closingMessage: "ਵਾਹਿਗੁਰੂ ਜੀ ਕਾ ਖ਼ਾਲਸਾ ॥ ਵਾਹਿਗੁਰੂ ਜੀ ਕੀ ਫ਼ਤਹਿ ॥\n\nWith the divine grace and blessings of Waheguru Ji, we look forward to celebrating this joyous occasion with you and your family!\n\nWith Love & Regards:\nBhusari Family"
+  closingMessage: "ਵਾਹਿਗੁਰੂ ਜੀ ਕਾ ਖ਼ਾਲਸਾ ॥ ਵਾਹਿਗੁਰੂ ਜੀ ਕੀ ਫ਼ਤਹਿ ॥\n\nWith the divine grace and blessings of Waheguru Ji, we look forward to celebrating this joyous occasion with you and your family!\n\nWith Love & Regards:\nBhusari Family & Kalra Family"
 };
