@@ -104,7 +104,7 @@ export function FamilyBlessings({ data }: FamilyBlessingsProps) {
               With Warm Compliments
             </span>
             <p className="font-serif font-bold text-base text-burgundy">
-              Bhusari Family &amp; All Relatives
+              Bhusari Family &amp; Kalra Family 
             </p>
           </div>
         </div>
