@@ -51,13 +51,6 @@ export function Hero({ data, shouldPlayVideo = true, onVideoEnd, isReady = true 
     if (onVideoEnd) onVideoEnd();
   };
 
-  const specialInvitee =
-    !data.invitedBy ||
-    data.invitedBy.toLowerCase().includes("jasmer") ||
-    data.invitedBy.toLowerCase().includes("grandmother")
-      ? "Tirajveer Singh & Mehrajveer Singh"
-      : data.invitedBy;
-
   return (
     <section className="relative min-h-[100svh] w-full flex flex-col items-center justify-center overflow-hidden bg-white">
       {/* Background Video or Image */}
@@ -83,7 +76,7 @@ export function Hero({ data, shouldPlayVideo = true, onVideoEnd, isReady = true 
           />
         )}
         
-        {/* Dynamic White Shade Overlay - perfectly balanced contrast for text readability without obscuring video */}
+        {/* Dynamic White Shade Overlay */}
         <div className="absolute inset-0 bg-white/40 backdrop-blur-[0.5px] transition-opacity duration-500 opacity-100" />
         
         {/* Soft luminous white veil when video ends */}
@@ -92,45 +85,36 @@ export function Hero({ data, shouldPlayVideo = true, onVideoEnd, isReady = true 
         )}
 
         {/* White bottom gradient blending into the next section */}
-        <div className="absolute bottom-0 inset-x-0 h-40 bg-gradient-to-t pointer-events-none transition-colors duration-1000 from-white via-white/80 to-transparent z-10" />
+        <div className="absolute bottom-0 inset-x-0 h-32 sm:h-40 bg-gradient-to-t pointer-events-none transition-colors duration-1000 from-white via-white/80 to-transparent z-10" />
       </div>
 
-      {/* Content: Visible immediately with refined, snappy entrance */}
-      <div className="relative z-10 flex flex-col items-center justify-center px-6 text-center w-full max-w-md mx-auto pt-12 pb-6 h-full min-h-[100svh] opacity-100">
+      {/* Content */}
+      <div className="relative z-10 flex flex-col items-center justify-between px-6 text-center w-full max-w-md mx-auto pt-8 pb-6 min-h-[100svh] opacity-100 select-none">
         
-        <div className="flex-1 flex flex-col items-center justify-center w-full mt-12">
+        {/* Top & Main Content */}
+        <div className="flex-1 flex flex-col items-center justify-center w-full my-auto">
           <motion.div
-            initial={{ opacity: 0, y: 8 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
             className="flex flex-col items-center w-full"
           >
-            {/* Sacred Sikh Invocation / Background-Removed Religious Logo */}
-            <div className="flex flex-col items-center mb-3">
+            {/* Sacred Sikh Invocation */}
+            <div className="flex flex-col items-center mb-2">
               <IkOnkarSymbol
                 customLogoUrl={data.heroLogoUrl}
-                className="h-16 md:h-20 w-auto max-w-[200px] object-contain drop-shadow-md select-none pointer-events-none transition-transform duration-300"
+                className="h-14 sm:h-16 md:h-20 w-auto max-w-[200px] object-contain drop-shadow-md select-none pointer-events-none transition-transform duration-300"
               />
-              <span className="text-[10px] tracking-[0.25em] uppercase text-wine-dark/85 font-serif mt-1.5 font-bold">
+              <span className="text-[10px] sm:text-xs tracking-[0.25em] uppercase text-wine-dark/80 font-serif mt-1 font-bold">
                 Ik Onkar • Satgur Prasad
               </span>
             </div>
 
-            {/* Special Invitation Callout - Big & Bold */}
-            <div className="mb-4 px-5 py-2.5 rounded-2xl bg-white/95 border border-pink-border/90 shadow-2xs backdrop-blur-xs flex flex-col items-center justify-center text-center">
-              <span className="text-[10px] sm:text-[11px] font-serif uppercase tracking-[0.25em] text-wine-dark/75 font-semibold mb-0.5">
-                Special Invitation
-              </span>
-              <span className="text-base sm:text-lg md:text-xl font-serif font-extrabold text-burgundy tracking-wide leading-snug drop-shadow-2xs">
-                {specialInvitee}
-              </span>
-            </div>
-
-            <p className="font-serif text-wine-dark text-[14px] italic mb-4 max-w-[300px] leading-relaxed font-normal opacity-95 whitespace-pre-line drop-shadow-2xs">
+            <p className="font-serif text-wine-dark text-xs sm:text-sm italic my-2 max-w-[280px] leading-relaxed font-normal opacity-90 whitespace-pre-line drop-shadow-2xs">
               {data.heroMessage}
             </p>
             
-            <div className="flex items-center justify-center gap-3 opacity-60 mb-6">
+            <div className="flex items-center justify-center gap-3 opacity-60 my-2">
               <div className="h-[1px] w-12 bg-wine-dark"></div>
               <Heart className="w-3 h-3 text-wine-dark fill-wine-dark" />
               <div className="h-[1px] w-12 bg-wine-dark"></div>
@@ -138,35 +122,35 @@ export function Hero({ data, shouldPlayVideo = true, onVideoEnd, isReady = true 
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, scale: 0.98 }}
+            initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.7, delay: 0.15, ease: "easeOut" }}
+            transition={{ duration: 0.8, delay: 0.1, ease: "easeOut" }}
             className="flex flex-col items-center justify-center w-full"
           >
             {/* Groom First (Priority) */}
-            <h1 className="font-script text-6xl text-wine-dark drop-shadow-sm leading-none">
+            <h1 className="font-script text-5xl sm:text-6xl md:text-7xl text-wine-dark drop-shadow-sm leading-tight">
               {data.groom.name}
             </h1>
-            <div className="font-serif flex flex-col items-center gap-1 mt-2.5 mb-5 text-center px-2">
-              <p className="text-sm sm:text-base md:text-[17px] font-bold text-burgundy tracking-wide leading-snug max-w-[340px]">
+            <div className="font-serif flex flex-col items-center gap-0.5 mt-1 mb-2 text-center">
+              <p className="text-xs sm:text-sm font-bold text-burgundy tracking-wide leading-snug max-w-[290px]">
                 {data.groom.parents}
               </p>
-              {data.groom.education && <p className="text-xs text-wine-dark/80">{data.groom.education}</p>}
-              {data.groom.profession && <p className="text-xs text-wine-dark/80">{data.groom.profession}</p>}
+              {data.groom.education && <p className="text-[11px] sm:text-xs text-wine-dark/75 leading-tight">{data.groom.education}</p>}
+              {data.groom.profession && <p className="text-[11px] sm:text-xs text-wine-dark/75 leading-tight">{data.groom.profession}</p>}
             </div>
             
-            <span className="font-script text-3xl text-pink-accent my-1">&amp;</span>
+            <span className="font-script text-3xl sm:text-4xl text-pink-accent my-1 select-none">&amp;</span>
             
             {/* Bride */}
-            <h1 className="font-script text-6xl text-wine-dark drop-shadow-sm leading-none mt-3">
+            <h1 className="font-script text-5xl sm:text-6xl md:text-7xl text-wine-dark drop-shadow-sm leading-tight mt-1">
               {data.bride.name}
             </h1>
-            <div className="font-serif flex flex-col items-center gap-1 mt-2.5 text-center px-2">
-              <p className="text-sm sm:text-base md:text-[17px] font-bold text-burgundy tracking-wide leading-snug max-w-[340px]">
+            <div className="font-serif flex flex-col items-center gap-0.5 mt-1 text-center">
+              <p className="text-xs sm:text-sm font-bold text-burgundy tracking-wide leading-snug max-w-[290px]">
                 {data.bride.parents}
               </p>
-              {data.bride.education && <p className="text-xs text-wine-dark/80">{data.bride.education}</p>}
-              {data.bride.profession && <p className="text-xs text-wine-dark/80">{data.bride.profession}</p>}
+              {data.bride.education && <p className="text-[11px] sm:text-xs text-wine-dark/75 leading-tight">{data.bride.education}</p>}
+              {data.bride.profession && <p className="text-[11px] sm:text-xs text-wine-dark/75 leading-tight">{data.bride.profession}</p>}
             </div>
           </motion.div>
         </div>
@@ -174,13 +158,13 @@ export function Hero({ data, shouldPlayVideo = true, onVideoEnd, isReady = true 
         {/* Scroll Indicator */}
         <motion.div
           initial={{ opacity: 0 }}
-          animate={{ opacity: 0.85 }}
-          transition={{ duration: 0.8, delay: 0.4 }}
-          className="mt-6 flex flex-col items-center"
+          animate={{ opacity: 0.8 }}
+          transition={{ duration: 0.8, delay: 0.3 }}
+          className="mt-auto pt-2 flex flex-col items-center select-none"
         >
-          <span className="text-[10px] font-serif text-wine-dark uppercase tracking-[0.3em] mb-2 font-semibold">Scroll</span>
+          <span className="text-[10px] font-serif text-wine-dark uppercase tracking-[0.2em] mb-1">Scroll</span>
           <motion.div 
-            animate={{ y: [0, 6, 0] }}
+            animate={{ y: [0, 5, 0] }}
             transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
           >
             <ArrowDown className="w-4 h-4 text-wine-dark" />
