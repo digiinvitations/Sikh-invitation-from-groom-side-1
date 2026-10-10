@@ -58,7 +58,7 @@ export function FamilyBlessings({ data }: FamilyBlessingsProps) {
           {/* Twinkle Stars of Family */}
           <div className="mb-5 pb-4 border-b border-amber-100/90 space-y-1">
             <span className="text-[11px] sm:text-xs uppercase tracking-widest font-serif font-bold text-wine-dark/70 block">
-              Respected Parents
+              Twinkle Stars of Family
             </span>
             <p className="font-serif font-bold text-base sm:text-lg text-wine-dark">
               Tirajveer Singh &amp; Mehrajveer Singh
