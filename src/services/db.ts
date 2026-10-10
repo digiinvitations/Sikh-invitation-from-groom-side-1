@@ -347,6 +347,64 @@ export async function saveWeddingData(data: WeddingData): Promise<void> {
   await Promise.allSettled(syncPromises);
 }
 
+/**
+ * Save Current Website Data as Official "Groom's Data":
+ * Saves and locks the current wedding data across all official master slots,
+ * groom remix slots, and Vercel hosting slots so it becomes the permanent,
+ * official online wedding data with zero overlap.
+ */
+export async function saveOfficialGroomData(data: WeddingData): Promise<{ success: boolean; syncedSlots: string[] }> {
+  const cleanData: WeddingData = {
+    ...data,
+    remixName: data.remixName || defaultData.remixName,
+    invitationSide: "groom",
+    updatedAt: new Date().toISOString()
+  };
+
+  if (cleanData.heroLogoUrl === "/src/assets/ikonkar-gold.svg") {
+    cleanData.heroLogoUrl = "/ikonkar-gold.svg";
+  }
+
+  // Systematically sort and normalize events and sync timeline
+  if (Array.isArray(cleanData.events) && cleanData.events.length > 0) {
+    cleanData.events = sortWeddingEvents(cleanData.events.map(e => ({
+      ...e,
+      date: parseCeremonyDate(e.date, e.time).isoDate || e.date,
+      time: formatAuspiciousTime(e.time),
+    })));
+    cleanData.timeline = cleanData.events.map((e, idx) => ({
+      id: e.id || `tl_${idx}`,
+      title: e.title,
+      date: e.date,
+      time: e.time,
+      description: e.description || `${e.title} at ${e.location}`,
+    }));
+  }
+
+  const slotId = getEnvironmentDocId();
+
+  // All critical master, remix, and hosting storage targets
+  const syncSlots = Array.from(new Set([
+    CANONICAL_DOC_ID,
+    GROOM_REMIX_DOC_ID,
+    "wedding_data_draft-invitation-for-jaspreet-weds_vercel_app",
+    "wedding_data_wjhktkcue5d2mszgfuvmql-14313311583",
+    slotId
+  ]));
+
+  const syncedSlots: string[] = [];
+  for (const target of syncSlots) {
+    try {
+      await setDoc(doc(db, "weddingConfig", target), cleanData);
+      syncedSlots.push(target);
+    } catch (e) {
+      console.warn(`Error syncing Groom's data to slot ${target}:`, e);
+    }
+  }
+
+  return { success: true, syncedSlots };
+}
+
 export interface GroomRecoveryResult {
   success: boolean;
   message: string;

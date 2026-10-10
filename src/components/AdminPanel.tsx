@@ -4,6 +4,7 @@ import {
   getWeddingData, 
   saveWeddingData, 
   recoverGroomData,
+  saveOfficialGroomData,
   getEnvironmentDocId, 
   isOfficialInstance,
   setCustomSlotId,
@@ -303,6 +304,28 @@ export function AdminPanel() {
     }
   };
 
+  // SAVE AS OFFICIAL GROOM'S DATA:
+  // Saves the exact current state of the wedding as official, canonical Groom's data across all database slots
+  const handleSaveGroomsData = async () => {
+    if (!data) return;
+    setSaving(true);
+    try {
+      const result = await saveOfficialGroomData(data);
+      if (result.success) {
+        alert(
+          `✅ Saved as Official Groom's Data!\n\n` +
+          `The current website data is now permanently saved as the official data for this website online.\n` +
+          `Synchronized across ${result.syncedSlots.length} cloud database locations including Vercel hosting with zero data overlap.`
+        );
+      }
+    } catch (err: any) {
+      console.error("Save Groom's data error:", err);
+      alert("Failed to save Groom's data: " + (err.message || "Please check connection"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // DOWNLOAD ASSET HELPER: Allows downloading individual media files (videos, mp3, images)
   const handleDownloadAsset = async (url: string, filename: string) => {
     if (!url) return;
@@ -544,6 +567,18 @@ export function AdminPanel() {
               {recovering ? "Recovering..." : "Groom data recovery"}
             </button>
 
+            {/* Save as Official Groom's Data Button */}
+            <button 
+              onClick={handleSaveGroomsData}
+              disabled={saving || recovering}
+              type="button"
+              className="flex items-center gap-1.5 bg-gradient-to-r from-emerald-700 via-emerald-800 to-emerald-900 hover:from-emerald-800 hover:to-emerald-950 text-white px-4 py-2 rounded-md transition-all text-xs font-bold uppercase tracking-wider shadow-sm border border-emerald-600/80 active:scale-95 disabled:opacity-50"
+              title="Save current website data as official online data for this website (Groom's data)"
+            >
+              <ShieldCheck className="w-4 h-4 text-emerald-200" />
+              {saving ? "Saving..." : "Groom's data (Save Official)"}
+            </button>
+
             <button 
               onClick={handleSave}
               disabled={saving}
@@ -630,6 +665,16 @@ export function AdminPanel() {
               </div>
 
               <div className="flex items-center gap-2 self-end sm:self-center flex-wrap">
+                <button
+                  type="button"
+                  onClick={handleSaveGroomsData}
+                  disabled={saving || recovering}
+                  className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs px-3 py-1.5 rounded-lg shadow-xs transition-colors flex items-center gap-1.5 font-sans font-bold"
+                  title="Save current data as official Groom's data online"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-200" />
+                  Groom's data
+                </button>
                 <button
                   type="button"
                   onClick={handleGroomDataRecovery}

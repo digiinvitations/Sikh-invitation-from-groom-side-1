@@ -89,7 +89,7 @@ export function Hero({ data, shouldPlayVideo = true, onVideoEnd, isReady = true 
       </div>
 
       {/* Content */}
-      <div className="relative z-10 flex flex-col items-center justify-between px-6 text-center w-full max-w-lg mx-auto pt-8 pb-6 min-h-[100svh] opacity-100 select-none">
+      <div className="relative z-10 flex flex-col items-center justify-between px-6 text-center w-full max-w-md mx-auto pt-8 pb-6 min-h-[100svh] opacity-100 select-none">
         
         {/* Top & Main Content */}
         <div className="flex-1 flex flex-col items-center justify-center w-full my-auto">
@@ -103,21 +103,21 @@ export function Hero({ data, shouldPlayVideo = true, onVideoEnd, isReady = true 
             <div className="flex flex-col items-center mb-2">
               <IkOnkarSymbol
                 customLogoUrl={data.heroLogoUrl}
-                className="h-16 sm:h-20 md:h-24 w-auto max-w-[230px] object-contain drop-shadow-md select-none pointer-events-none transition-transform duration-300"
+                className="h-14 sm:h-16 md:h-20 w-auto max-w-[200px] object-contain drop-shadow-md select-none pointer-events-none transition-transform duration-300"
               />
-              <span className="text-[11px] sm:text-xs md:text-sm tracking-[0.25em] uppercase text-wine-dark/80 font-serif mt-1.5 font-bold">
+              <span className="text-[10px] sm:text-xs tracking-[0.2em] uppercase text-wine-dark/80 font-serif mt-1 font-bold">
                 Ik Onkar • Satgur Prasad
               </span>
             </div>
 
-            <p className="font-serif text-wine-dark text-sm sm:text-base italic my-2 max-w-[340px] leading-relaxed font-normal opacity-90 whitespace-pre-line drop-shadow-2xs">
+            <p className="font-serif text-wine-dark text-xs sm:text-sm italic my-1.5 max-w-[280px] leading-relaxed font-normal opacity-90 whitespace-pre-line drop-shadow-2xs">
               {data.heroMessage}
             </p>
             
-            <div className="flex items-center justify-center gap-3 opacity-60 my-2.5">
-              <div className="h-[1px] w-14 bg-wine-dark"></div>
-              <Heart className="w-3.5 h-3.5 text-wine-dark fill-wine-dark" />
-              <div className="h-[1px] w-14 bg-wine-dark"></div>
+            <div className="flex items-center justify-center gap-3 opacity-60 my-2">
+              <div className="h-[1px] w-12 bg-wine-dark"></div>
+              <Heart className="w-3 h-3 text-wine-dark fill-wine-dark" />
+              <div className="h-[1px] w-12 bg-wine-dark"></div>
             </div>
           </motion.div>
 
@@ -128,29 +128,29 @@ export function Hero({ data, shouldPlayVideo = true, onVideoEnd, isReady = true 
             className="flex flex-col items-center justify-center w-full"
           >
             {/* Groom First (Priority) */}
-            <h1 className="font-script text-5xl sm:text-6xl md:text-7xl lg:text-8xl text-wine-dark drop-shadow-sm leading-tight">
+            <h1 className="font-script text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-wine-dark drop-shadow-sm leading-tight">
               {data.groom.name}
             </h1>
-            <div className="font-serif flex flex-col items-center gap-1 mt-1 mb-2 text-center">
-              <p className="text-sm sm:text-base font-bold text-burgundy tracking-wide leading-snug max-w-[340px]">
+            <div className="font-serif flex flex-col items-center gap-0.5 mt-1 mb-1 text-center">
+              <p className="text-xs sm:text-sm font-bold text-burgundy tracking-wide leading-snug max-w-[280px]">
                 {data.groom.parents}
               </p>
-              {data.groom.education && <p className="text-xs sm:text-sm text-wine-dark/80 leading-tight">{data.groom.education}</p>}
-              {data.groom.profession && <p className="text-xs sm:text-sm text-wine-dark/80 leading-tight">{data.groom.profession}</p>}
+              {data.groom.education && <p className="text-[10px] sm:text-xs text-wine-dark/80 leading-tight">{data.groom.education}</p>}
+              {data.groom.profession && <p className="text-[10px] sm:text-xs text-wine-dark/80 leading-tight">{data.groom.profession}</p>}
             </div>
             
-            <span className="font-script text-3xl sm:text-4xl md:text-5xl text-pink-accent my-1.5 select-none">&amp;</span>
+            <span className="font-script text-2xl sm:text-3xl text-pink-accent my-1 select-none">&amp;</span>
             
             {/* Bride */}
-            <h1 className="font-script text-5xl sm:text-6xl md:text-7xl lg:text-8xl text-wine-dark drop-shadow-sm leading-tight mt-1">
+            <h1 className="font-script text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-wine-dark drop-shadow-sm leading-tight">
               {data.bride.name}
             </h1>
-            <div className="font-serif flex flex-col items-center gap-1 mt-1 text-center">
-              <p className="text-sm sm:text-base font-bold text-burgundy tracking-wide leading-snug max-w-[340px]">
+            <div className="font-serif flex flex-col items-center gap-0.5 mt-1 text-center">
+              <p className="text-xs sm:text-sm font-bold text-burgundy tracking-wide leading-snug max-w-[280px]">
                 {data.bride.parents}
               </p>
-              {data.bride.education && <p className="text-xs sm:text-sm text-wine-dark/80 leading-tight">{data.bride.education}</p>}
-              {data.bride.profession && <p className="text-xs sm:text-sm text-wine-dark/80 leading-tight">{data.bride.profession}</p>}
+              {data.bride.education && <p className="text-[10px] sm:text-xs text-wine-dark/80 leading-tight">{data.bride.education}</p>}
+              {data.bride.profession && <p className="text-[10px] sm:text-xs text-wine-dark/80 leading-tight">{data.bride.profession}</p>}
             </div>
           </motion.div>
         </div>
@@ -162,12 +162,12 @@ export function Hero({ data, shouldPlayVideo = true, onVideoEnd, isReady = true 
           transition={{ duration: 0.8, delay: 0.3 }}
           className="mt-auto pt-2 flex flex-col items-center select-none"
         >
-          <span className="text-xs font-serif text-wine-dark uppercase tracking-[0.2em] mb-1">Scroll</span>
+          <span className="text-[10px] font-serif text-wine-dark uppercase tracking-[0.2em] mb-1">Scroll</span>
           <motion.div 
             animate={{ y: [0, 5, 0] }}
             transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
           >
-            <ArrowDown className="w-4 h-4 text-wine-dark" />
+            <ArrowDown className="w-3.5 h-3.5 text-wine-dark" />
           </motion.div>
         </motion.div>
       </div>
