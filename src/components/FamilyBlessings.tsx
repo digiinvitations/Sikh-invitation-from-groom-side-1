@@ -38,7 +38,7 @@ export function FamilyBlessings({ data }: FamilyBlessingsProps) {
               Special Invitation
             </span>
             <p className="font-serif font-extrabold text-lg sm:text-xl text-burgundy tracking-wide">
-              Tirajveer Singh &amp; Mehrajveer Singh
+              S. Kuldeep Singh Bhusari &amp; Sdn. Ravinder Kaur
             </p>
           </div>
 
@@ -48,20 +48,20 @@ export function FamilyBlessings({ data }: FamilyBlessingsProps) {
               Respected Grandparents &amp; Elders
             </span>
             <p className="font-serif font-bold text-base sm:text-lg text-wine-dark">
-              S. Inder Singh Bhusari &amp; Sita Rani
+             Late S. Inder Singh Bhusari &amp; Late Sita Rani
             </p>
             <p className="font-serif text-sm sm:text-base text-wine-dark/90 font-medium">
               Grand Uncle: <strong className="text-wine-dark font-bold">Joginder Singh Bhusari</strong>
             </p>
           </div>
 
-          {/* Groom's Parents */}
+          {/* Twinkle Stars of Family */}
           <div className="mb-5 pb-4 border-b border-amber-100/90 space-y-1">
             <span className="text-[11px] sm:text-xs uppercase tracking-widest font-serif font-bold text-wine-dark/70 block">
               Respected Parents
             </span>
             <p className="font-serif font-bold text-base sm:text-lg text-wine-dark">
-              S. Kuldeep Singh Bhusari &amp; Sdn. Ravinder Kaur
+              Tirajveer Singh &amp; Mehrajveer Singh
             </p>
           </div>
 
